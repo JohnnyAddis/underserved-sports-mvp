@@ -6,7 +6,7 @@ import { schemaTypes } from './schemas'
 export default defineConfig({
   name: 'default',
   title: 'Underserved Sports',
-  projectId: 'hjaa2x76',           // <-- your real lowercase ID
+  projectId: 'hjaa2x76',  
   dataset: 'production',
   plugins: [structureTool(), visionTool()],
   schema: { types: schemaTypes },

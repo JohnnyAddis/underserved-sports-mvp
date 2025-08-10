@@ -1,6 +1,9 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import type { ArticleListItem } from '@/types/content'
+
+export const revalidate = 60 // ISR: rebuild this page at most once/minute
 
 export default async function Home() {
   const articles = await sanity.fetch<ArticleListItem[]>(
@@ -23,20 +26,23 @@ export default async function Home() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {articles.map((a) => (
           <article key={a.slug} className="border rounded-xl p-4 hover:shadow">
-            {/* Primary link (image + title + excerpt) */}
             <Link href={`/news/${a.slug}`} className="block">
               {a.imgUrl && (
-                <img
-                  src={`${a.imgUrl}?w=800&h=450&fit=crop&auto=format`}
-                  alt={a.imgAlt ?? ''}
-                  className="w-full h-40 object-cover rounded-md mb-3"
-                />
+                <div className="relative w-full h-40 mb-3">
+                  <Image
+                    src={a.imgUrl}
+                    alt={a.imgAlt ?? ''}
+                    fill
+                    sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+                    className="object-cover rounded-md"
+                    priority={false}
+                  />
+                </div>
               )}
               <h2 className="font-semibold">{a.title}</h2>
               {a.excerpt && <p className="text-sm mt-2 line-clamp-3">{a.excerpt}</p>}
             </Link>
 
-            {/* Secondary link (league) — separate link, not nested */}
             {a.league?.slug && (
               <div className="text-sm opacity-70 mt-2">
                 <Link href={`/leagues/${a.league.slug}`}>{a.league.name}</Link>

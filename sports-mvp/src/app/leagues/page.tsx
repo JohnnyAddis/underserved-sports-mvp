@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import type { LeagueListItem } from '@/types/content'
 
 export const metadata = { title: 'Leagues' }
+export const revalidate = 300 // refresh every 5 minutes
 
 type LeagueWithCount = LeagueListItem & { count: number }
 
@@ -31,10 +33,12 @@ export default async function LeaguesPage() {
           <li key={l.slug} className="border rounded-xl p-4 hover:shadow">
             <Link href={`/leagues/${l.slug}`} className="flex items-center gap-3">
               {l.logoUrl && (
-                <img
-                  src={`${l.logoUrl}?w=64&h=64&fit=crop&auto=format`}
+                <Image
+                  src={l.logoUrl}
                   alt={`${l.name} logo`}
-                  className="h-10 w-10 rounded"
+                  width={40}
+                  height={40}
+                  className="rounded"
                 />
               )}
               <div>

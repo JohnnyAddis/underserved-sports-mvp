@@ -1,9 +1,12 @@
 import Link from 'next/link'
-import { sanity } from '@/lib/sanity'
+import Image from 'next/image'
 import { PortableText } from '@portabletext/react'
-import JsonLd from '@/components/JsonLd'
 import type { PortableTextBlock } from '@portabletext/types'
+import { sanity } from '@/lib/sanity'
+import JsonLd from '@/components/JsonLd'
 import { canonical, ogImage } from '@/lib/seo'
+
+export const revalidate = 120 // Rebuild at most once every 2 minutes
 
 type LeagueDetail = {
   name: string
@@ -21,20 +24,30 @@ type LeagueArticle = {
   excerpt?: string
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
   const meta = await sanity.fetch<LeagueDetail | null>(
     `*[_type=="league" && slug.current==$slug][0]{
-      name, "slug": slug.current, "logoUrl": logo.asset->url,
-      metaTitle, metaDescription, noindex
+      name,
+      "slug": slug.current,
+      "logoUrl": logo.asset->url,
+      metaTitle,
+      metaDescription,
+      noindex
     }`,
-    { slug: params.slug }
+    { slug }
   )
 
   if (!meta) return {}
 
   const title = meta.metaTitle || meta.name || 'League'
   const description = meta.metaDescription || ''
-  const url = canonical(`/leagues/${params.slug}`)
+  const url = canonical(`/leagues/${slug}`)
   const image = ogImage(meta.logoUrl)
 
   return {
@@ -58,7 +71,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function LeaguePage({ params }: { params: { slug: string } }) {
+export default async function LeaguePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
   const data = await sanity.fetch<{
     league: LeagueDetail | null
     articles: LeagueArticle[]
@@ -79,27 +98,21 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
         }
     }
     `,
-    { slug: params.slug }
+    { slug }
   )
 
   const league = data.league
   if (!league) return <div className="px-6 py-10">League not found.</div>
 
-  // JSON-LD: CollectionPage + BreadcrumbList
-  const url = canonical(`/leagues/${league.slug}`)
-  const image = ogImage(league.logoUrl)
-  const collectionLd = {
+  // JSON-LD
+  const leagueUrl = canonical(`/leagues/${league.slug}`)
+  const leagueImage = ogImage(league.logoUrl)
+  const leagueLd = {
     '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
+    '@type': 'SportsOrganization',
     name: league.name,
-    url,
-    image,
-    mainEntity: data.articles.map((a, i) => ({
-      '@type': 'Article',
-      position: i + 1,
-      name: a.title,
-      url: canonical(`/news/${a.slug}`),
-    })),
+    url: leagueUrl,
+    logo: leagueImage ? { '@type': 'ImageObject', url: leagueImage } : undefined,
   }
   const breadcrumbLd = {
     '@context': 'https://schema.org',
@@ -107,23 +120,39 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: canonical('/') },
       { '@type': 'ListItem', position: 2, name: 'Leagues', item: canonical('/leagues') },
-      { '@type': 'ListItem', position: 3, name: league.name, item: url },
+      { '@type': 'ListItem', position: 3, name: league.name, item: leagueUrl },
     ],
   }
 
   return (
     <div className="px-6 py-10 space-y-8">
+      {/* Breadcrumbs */}
+      <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
+        <ol className="flex flex-wrap items-center gap-2">
+          <li><Link href="/">Home</Link></li>
+          <li aria-hidden>/</li>
+          <li><Link href="/leagues">Leagues</Link></li>
+          <li aria-hidden>/</li>
+          <li aria-current="page" className="truncate max-w-[50vw]">{league.name}</li>
+        </ol>
+      </nav>
+
+      {/* Header */}
       <header className="flex items-center gap-4">
         {league.logoUrl && (
-          <img
-            src={`${league.logoUrl}?w=96&h=96&fit=crop&auto=format`}
+          <Image
+            src={league.logoUrl}
             alt={`${league.name} logo`}
-            className="h-16 w-16 rounded"
+            width={64}
+            height={64}
+            className="rounded"
+            priority={false}
           />
         )}
         <h1 className="text-3xl font-semibold">{league.name}</h1>
       </header>
 
+      {/* About */}
       <section className="prose">
         {league.about?.length ? (
           <PortableText value={league.about} />
@@ -132,6 +161,7 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
         )}
       </section>
 
+      {/* Articles */}
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Latest articles</h2>
         {!data.articles.length ? (
@@ -150,8 +180,8 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
         )}
       </section>
 
-      {/* Page-level JSON-LD */}
-      <JsonLd data={collectionLd} />
+      {/* JSON-LD */}
+      <JsonLd data={leagueLd} />
       <JsonLd data={breadcrumbLd} />
     </div>
   )

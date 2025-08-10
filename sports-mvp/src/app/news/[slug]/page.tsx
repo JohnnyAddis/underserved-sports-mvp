@@ -1,9 +1,12 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
 import JsonLd from '@/components/JsonLd'
 import { canonical, ogImage } from '@/lib/seo'
 import type { ArticleDetail, RelatedArticle } from '@/types/content'
+
+export const revalidate = 60 // Rebuild at most once per minute
 
 type ArticleData = {
   article: (ArticleDetail & {
@@ -14,7 +17,13 @@ type ArticleData = {
   fallbackRelated: RelatedArticle[]
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
   const meta = await sanity.fetch<{
     title?: string
     metaTitle?: string
@@ -26,14 +35,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title, metaTitle, metaDescription, noindex,
       "imgUrl": heroImage.asset->url
     }`,
-    { slug: params.slug }
+    { slug }
   )
 
   if (!meta) return {}
 
   const title = meta.metaTitle || meta.title || 'Article'
   const description = meta.metaDescription || ''
-  const url = canonical(`/news/${params.slug}`)
+  const url = canonical(`/news/${slug}`)
   const image = ogImage(meta.imgUrl || undefined)
 
   return {
@@ -57,7 +66,13 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function ArticlePage({ params }: { params: { slug: string } }) {
+export default async function ArticlePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+
   const data = await sanity.fetch<ArticleData>(
     `
     {
@@ -84,7 +99,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         }
     }
     `,
-    { slug: params.slug }
+    { slug }
   )
 
   const a = data.article
@@ -93,6 +108,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
   const related: RelatedArticle[] =
     (data.manualRelated?.length ? data.manualRelated : data.fallbackRelated || []).slice(0, 5)
 
+  // Build JSON‑LD objects
   const url = canonical(`/news/${a.slug}`)
   const image = ogImage(a.imgUrl || undefined)
   const articleLd = {
@@ -104,10 +120,28 @@ export default async function ArticlePage({ params }: { params: { slug: string }
     dateModified: a.updatedAt,
     author: a.author?.name ? { '@type': 'Person', name: a.author.name } : undefined,
     mainEntityOfPage: url,
+    publisher: {
+      '@type': 'Organization',
+      name: 'Underserved Sports',
+      logo: { '@type': 'ImageObject', url: '/favicon.ico' },
+    },
+  }
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: canonical('/') },
+      { '@type': 'ListItem', position: 2, name: 'Leagues', item: canonical('/leagues') },
+      ...(a.league
+        ? [{ '@type': 'ListItem', position: 3, name: a.league.name, item: canonical(`/leagues/${a.league.slug}`) }]
+        : []),
+      { '@type': 'ListItem', position: a.league ? 4 : 3, name: a.title, item: url },
+    ],
   }
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
+      {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
         <ol className="flex flex-wrap items-center gap-2">
           <li><Link href="/">Home</Link></li>
@@ -130,11 +164,16 @@ export default async function ArticlePage({ params }: { params: { slug: string }
 
       {a.imgUrl && (
         <figure>
-          <img
-            src={`${a.imgUrl}?w=1200&h=630&fit=crop&auto=format`}
-            alt={a.imgAlt ?? ''}
-            className="w-full rounded-lg"
-          />
+          <div className="relative w-full h-[315px] sm:h-[420px]">
+            <Image
+              src={a.imgUrl}
+              alt={a.imgAlt ?? ''}
+              fill
+              sizes="(min-width:1024px) 960px, 100vw"
+              className="object-cover rounded-lg"
+              priority
+            />
+          </div>
           {a.imgAlt && <figcaption className="text-sm text-gray-500 mt-1">{a.imgAlt}</figcaption>}
         </figure>
       )}
@@ -147,9 +186,9 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         <section className="border-t pt-4">
           <h2 className="text-lg font-semibold mb-2">Sources</h2>
           <ul className="list-disc pl-5 space-y-1">
-            {a.sources.map((url) => (
-              <li key={url}>
-                <a href={url} target="_blank" rel="nofollow noopener noreferrer">{url}</a>
+            {a.sources.map((u) => (
+              <li key={u}>
+                <a href={u} target="_blank" rel="nofollow noopener noreferrer">{u}</a>
               </li>
             ))}
           </ul>
@@ -160,7 +199,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         <aside className="border-t pt-4">
           <h2 className="text-lg font-semibold mb-2">Related</h2>
           <ul className="grid sm:grid-cols-2 gap-3">
-            {related.map(r => (
+            {related.map((r) => (
               <li key={r.slug} className="border rounded-lg p-3 hover:shadow">
                 <Link href={`/news/${r.slug}`}>{r.title}</Link>
               </li>
@@ -169,7 +208,9 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         </aside>
       )}
 
+      {/* Page-level JSON-LD */}
       <JsonLd data={articleLd} />
+      <JsonLd data={breadcrumbLd} />
     </main>
   )
 }
