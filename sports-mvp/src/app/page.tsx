@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import type { ArticleListItem } from '@/types/content'
 
-export const revalidate = 60 // ISR: rebuild this page at most once/minute
+export const revalidate = 60
 
 export default async function Home() {
   const articles = await sanity.fetch<ArticleListItem[]>(
@@ -24,9 +24,9 @@ export default async function Home() {
       <h1 className="text-2xl font-bold">Trending</h1>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {articles.map((a) => (
+        {articles.map((a, idx) => (
           <article key={a.slug} className="border rounded-xl p-4 hover:shadow">
-            <Link href={`/news/${a.slug}`} className="block">
+            <Link href={`/news/${a.slug}`} className="block" prefetch={false}>
               {a.imgUrl && (
                 <div className="relative w-full h-40 mb-3">
                   <Image
@@ -35,7 +35,7 @@ export default async function Home() {
                     fill
                     sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
                     className="object-cover rounded-md"
-                    priority={false}
+                    priority={idx === 0}
                   />
                 </div>
               )}
@@ -45,7 +45,9 @@ export default async function Home() {
 
             {a.league?.slug && (
               <div className="text-sm opacity-70 mt-2">
-                <Link href={`/leagues/${a.league.slug}`}>{a.league.name}</Link>
+                <Link href={`/leagues/${a.league.slug}`} prefetch={false}>
+                  {a.league.name}
+                </Link>
               </div>
             )}
           </article>

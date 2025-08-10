@@ -4,7 +4,7 @@ import { sanity } from '@/lib/sanity'
 import type { LeagueListItem } from '@/types/content'
 
 export const metadata = { title: 'Leagues' }
-export const revalidate = 300 // refresh every 5 minutes
+export const revalidate = 300
 
 type LeagueWithCount = LeagueListItem & { count: number }
 
@@ -31,7 +31,7 @@ export default async function LeaguesPage() {
       <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {leagues.map((l) => (
           <li key={l.slug} className="border rounded-xl p-4 hover:shadow">
-            <Link href={`/leagues/${l.slug}`} className="flex items-center gap-3">
+            <Link href={`/leagues/${l.slug}`} className="flex items-center gap-3" prefetch={false}>
               {l.logoUrl && (
                 <Image
                   src={l.logoUrl}
