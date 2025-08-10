@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { sanity } from '@/lib/sanity'
-import type { ArticleListItem } from '../types/format'
+import type { ArticleListItem } from '@/types/content'
 
 export default async function Home() {
   const articles = await sanity.fetch<ArticleListItem[]>(
@@ -22,22 +22,27 @@ export default async function Home() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {articles.map((a) => (
-          <Link
-            key={a.slug}
-            href={`/news/${a.slug}`}
-            className="border rounded-xl p-4 hover:shadow block"
-          >
-            {a.imgUrl && (
-              <img
-                src={`${a.imgUrl}?w=800&h=450&fit=crop&auto=format`}
-                alt={a.imgAlt ?? ''}
-                className="w-full h-40 object-cover rounded-md mb-3"
-              />
+          <article key={a.slug} className="border rounded-xl p-4 hover:shadow">
+            {/* Primary link (image + title + excerpt) */}
+            <Link href={`/news/${a.slug}`} className="block">
+              {a.imgUrl && (
+                <img
+                  src={`${a.imgUrl}?w=800&h=450&fit=crop&auto=format`}
+                  alt={a.imgAlt ?? ''}
+                  className="w-full h-40 object-cover rounded-md mb-3"
+                />
+              )}
+              <h2 className="font-semibold">{a.title}</h2>
+              {a.excerpt && <p className="text-sm mt-2 line-clamp-3">{a.excerpt}</p>}
+            </Link>
+
+            {/* Secondary link (league) — separate link, not nested */}
+            {a.league?.slug && (
+              <div className="text-sm opacity-70 mt-2">
+                <Link href={`/leagues/${a.league.slug}`}>{a.league.name}</Link>
+              </div>
             )}
-            <div className="text-sm opacity-70">{a.league?.name}</div>
-            <h2 className="font-semibold mt-1">{a.title}</h2>
-            <p className="text-sm mt-2 line-clamp-3">{a.excerpt}</p>
-          </Link>
+          </article>
         ))}
       </div>
     </main>

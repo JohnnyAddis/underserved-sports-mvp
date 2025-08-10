@@ -1,25 +1,59 @@
-import { sanity } from '@/lib/sanity'
 import Link from 'next/link'
+import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
+import JsonLd from '@/components/JsonLd'
+import { canonical, ogImage } from '@/lib/seo'
 import type { ArticleDetail, RelatedArticle } from '@/types/content'
-import { formatDate } from '../../../lib/format'
 
 type ArticleData = {
-  article: ArticleDetail | null
+  article: (ArticleDetail & {
+    slug: string
+    author?: { name?: string }
+  }) | null
   manualRelated: RelatedArticle[]
   fallbackRelated: RelatedArticle[]
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const meta = await sanity.fetch<{ title?: string; metaTitle?: string; metaDescription?: string; noindex?: boolean }>(
-    `*[_type=="article" && slug.current==$slug][0]{title,metaTitle,metaDescription,noindex}`,
+  const meta = await sanity.fetch<{
+    title?: string
+    metaTitle?: string
+    metaDescription?: string
+    noindex?: boolean
+    imgUrl?: string
+  }>(
+    `*[_type=="article" && slug.current==$slug][0]{
+      title, metaTitle, metaDescription, noindex,
+      "imgUrl": heroImage.asset->url
+    }`,
     { slug: params.slug }
   )
+
   if (!meta) return {}
+
+  const title = meta.metaTitle || meta.title || 'Article'
+  const description = meta.metaDescription || ''
+  const url = canonical(`/news/${params.slug}`)
+  const image = ogImage(meta.imgUrl || undefined)
+
   return {
-    title: meta.metaTitle || meta.title || 'Article',
-    description: meta.metaDescription || '',
+    title,
+    description,
+    alternates: { canonical: url },
     robots: meta.noindex ? { index: false, follow: false } : { index: true, follow: true },
+    openGraph: {
+      type: 'article',
+      url,
+      title,
+      description,
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
   }
 }
 
@@ -28,6 +62,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
     `
     {
       "article": *[_type=="article" && slug.current==$slug][0]{
+        "slug": slug.current,
         title,
         excerpt,
         "imgUrl": heroImage.asset->url,
@@ -37,15 +72,12 @@ export default async function ArticlePage({ params }: { params: { slug: string }
         "updatedAt": _updatedAt,
         tags,
         sources,
-        league->{name, "slug": slug.current}
+        league->{name, "slug": slug.current},
+        author->{name}
       },
-
-      // manual related list (editor-picked)
       "manualRelated": *[_type=="article" && slug.current==$slug][0].relatedArticles[]->{
         title, "slug": slug.current
       },
-
-      // fallback related: same league, exclude current, most recent
       "fallbackRelated": *[_type=="article" && league->slug.current==^.^.article.league->slug.current && slug.current!=$slug]
         | order(publishedAt desc)[0...5]{
           title, "slug": slug.current
@@ -56,14 +88,26 @@ export default async function ArticlePage({ params }: { params: { slug: string }
   )
 
   const a = data.article
-  if (!a) return <div className="p-8">Not found</div>
+  if (!a) return <main className="p-8">Not found</main>
 
-  // choose up to 5 related, manual first then fallback
-  const related: RelatedArticle[] = (data.manualRelated?.length ? data.manualRelated : data.fallbackRelated || []).slice(0, 5)
+  const related: RelatedArticle[] =
+    (data.manualRelated?.length ? data.manualRelated : data.fallbackRelated || []).slice(0, 5)
+
+  const url = canonical(`/news/${a.slug}`)
+  const image = ogImage(a.imgUrl || undefined)
+  const articleLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: a.title,
+    image: image ? [image] : undefined,
+    datePublished: a.publishedAt,
+    dateModified: a.updatedAt,
+    author: a.author?.name ? { '@type': 'Person', name: a.author.name } : undefined,
+    mainEntityOfPage: url,
+  }
 
   return (
-    <article className="mx-auto max-w-3xl space-y-6">
-      {/* Breadcrumbs */}
+    <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
       <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
         <ol className="flex flex-wrap items-center gap-2">
           <li><Link href="/">Home</Link></li>
@@ -82,12 +126,6 @@ export default async function ArticlePage({ params }: { params: { slug: string }
 
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">{a.title}</h1>
-        <div className="text-sm text-gray-500 flex gap-2">
-          {a.publishedAt && <time dateTime={a.publishedAt}>Published {formatDate(a.publishedAt)}</time>}
-          {a.updatedAt && a.updatedAt !== a.publishedAt && (
-            <span>· Updated {formatDate(a.updatedAt)}</span>
-          )}
-        </div>
       </header>
 
       {a.imgUrl && (
@@ -96,7 +134,6 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             src={`${a.imgUrl}?w=1200&h=630&fit=crop&auto=format`}
             alt={a.imgAlt ?? ''}
             className="w-full rounded-lg"
-            loading="eager"
           />
           {a.imgAlt && <figcaption className="text-sm text-gray-500 mt-1">{a.imgAlt}</figcaption>}
         </figure>
@@ -131,6 +168,8 @@ export default async function ArticlePage({ params }: { params: { slug: string }
           </ul>
         </aside>
       )}
-    </article>
+
+      <JsonLd data={articleLd} />
+    </main>
   )
 }
