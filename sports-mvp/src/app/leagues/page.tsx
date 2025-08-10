@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { sanity } from '@/lib/sanity'
-import type { LeagueListItem } from '../../types/content'
+import type { LeagueListItem } from '@/types/content'
 
 export const metadata = { title: 'Leagues' }
 
