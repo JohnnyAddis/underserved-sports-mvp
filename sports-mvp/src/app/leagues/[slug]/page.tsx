@@ -1,5 +1,6 @@
 import { sanity } from '@/lib/sanity'
 import Link from 'next/link'
+import { PortableText } from '@portabletext/react'
 import type { PortableTextBlock } from '@portabletext/types'
 
 type LeagueDetail = {
@@ -8,11 +9,7 @@ type LeagueDetail = {
   logoUrl?: string
   slug: string
 }
-type ArticleListItem = {
-  title: string
-  slug: string
-  excerpt?: string
-}
+type ArticleListItem = { title: string; slug: string; excerpt?: string }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const data = await sanity.fetch<Pick<LeagueDetail, 'name'>>(
@@ -41,8 +38,7 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
           "slug": slug.current,
           excerpt
         }
-    }
-    `,
+    }`,
     { slug: params.slug }
   )
 
@@ -55,8 +51,9 @@ export default async function LeaguePage({ params }: { params: { slug: string } 
         <h1 className="text-3xl font-semibold">{league.name}</h1>
       </header>
 
-      {/* About (optional; render plain for now) */}
-      {league.about && <div className="prose"><p>About section coming soon.</p></div>}
+      <section className="prose">
+        {league.about?.length ? <PortableText value={league.about} /> : <p className="text-gray-500">No about section yet.</p>}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Latest articles</h2>
