@@ -1,12 +1,13 @@
 import { defineConfig } from 'sanity'
 import { visionTool } from '@sanity/vision'
+import { structureTool } from 'sanity/structure'
 import { schemaTypes } from './schemas'
 
 export default defineConfig({
   name: 'default',
   title: 'Underserved Sports',
-  projectId: '<YOUR_SANITY_PROJECT_ID>',
+  projectId: 'hjaa2x76',           // <-- your real lowercase ID
   dataset: 'production',
-  plugins: [visionTool()],
+  plugins: [structureTool(), visionTool()],
   schema: { types: schemaTypes },
 })

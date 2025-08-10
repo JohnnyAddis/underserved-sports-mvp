@@ -4,3 +4,8 @@ export type ArticleListItem = {
   excerpt?: string
   league?: { name: string; slug: string }
 }
+export type LeagueListItem = {
+  name: string
+  slug: string
+  logoUrl?: string
+}
