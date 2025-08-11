@@ -37,7 +37,7 @@ export default async function LeaguePage(
 ) {
   const { slug } = await params
 
-  // 1) Load league and its id
+  // Load league (for header UI). If not found, 404.
   const league = await sanity.fetch<(LeagueData & { _id: string }) | null>(
     `*[_type=="league" && slug.current==$slug][0]{
       _id,
@@ -47,11 +47,9 @@ export default async function LeaguePage(
     }`,
     { slug }
   )
-
   if (!league) return notFound()
 
-  // 2) Fetch articles by reference to this league id
-  //    Also include a fallback where league->slug.current matches (in case ref got set oddly)
+  // Articles for this league (robust matching; same as in Leagues page count)
   const articles = await sanity.fetch<Card[]>(
     `*[
       _type == "article" &&
@@ -59,7 +57,9 @@ export default async function LeaguePage(
       defined(slug.current) &&
       (
         references($leagueId) ||
-        (defined(league) && league->slug.current == $slug)
+        (defined(league) && league->_id == $leagueId) ||
+        (defined(leagues) && $leagueId in leagues[]._ref) ||
+        (defined(leagueSlug) && leagueSlug == $slug)
       )
     ]
     | order(coalesce(publishedAt, _updatedAt, _createdAt) desc){
@@ -72,17 +72,26 @@ export default async function LeaguePage(
     { leagueId: league._id, slug }
   )
 
+  const articleCount = articles.length
+
   return (
     <main className="space-y-8">
-      <header className="flex items-center gap-4">
-        {league.logoUrl ? (
-          <div className="relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-slate-200">
-            <Image src={league.logoUrl} alt="" fill sizes="64px" className="object-cover" />
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {league.logoUrl ? (
+            <div className="relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-slate-200">
+              <Image src={league.logoUrl} alt="" fill sizes="64px" className="object-cover" />
+            </div>
+          ) : (
+            <div className="h-16 w-16 rounded-lg bg-slate-100" />
+          )}
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{league.name}</h1>
+            <p className="text-sm text-slate-600">
+              {articleCount} article{articleCount === 1 ? '' : 's'}
+            </p>
           </div>
-        ) : (
-          <div className="h-16 w-16 rounded-lg bg-slate-100" />
-        )}
-        <h1 className="text-3xl font-bold tracking-tight">{league.name}</h1>
+        </div>
       </header>
 
       <section className="prose lg:prose-lg">
@@ -95,7 +104,6 @@ export default async function LeaguePage(
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Articles</h2>
-
         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((a) => (
             <li key={a.slug} className="border rounded-xl p-4 hover:shadow">
