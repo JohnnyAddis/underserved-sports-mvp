@@ -2,8 +2,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 
-// Re-generate this page at most every 30s so deletes/unpublishes drop off soon
 export const revalidate = 30
+export const metadata = { title: 'Home' }
 
 type Card = {
   title: string
@@ -14,22 +14,15 @@ type Card = {
   league?: { name: string; slug: string } | null
 }
 
-export const metadata = { title: 'Home' }
-
 export default async function Home() {
-  // Only include published, non-draft, past-dated articles
   const articles = await sanity.fetch<Card[]>(`
     *[
       _type == "article" &&
-      !(_id in path('drafts.**')) &&
-      defined(publishedAt) && publishedAt <= now() &&
-      (
-        // treat explicit status field when present
-        status == "published" || status == "edited" ||
-        // OR if status not set, still allow publishedAt docs
-        !defined(status)
+      !(_id in path('drafts.**')) &&            // published (not a draft)
+      !(
+        defined(status) && status in ["draft","ai_generated"]
       )
-    ] | order(publishedAt desc)[0...6]{
+    ] | order(coalesce(publishedAt, _updatedAt, _createdAt) desc)[0...6]{
       title,
       "slug": slug.current,
       excerpt,

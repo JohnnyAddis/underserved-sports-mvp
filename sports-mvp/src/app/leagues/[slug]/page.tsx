@@ -5,7 +5,6 @@ import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
 import type { PortableTextBlock } from '@portabletext/types'
 
-// Re-generate this page at most every 30s so deletes/unpublishes drop off soon
 export const revalidate = 30
 
 type LeagueData = {
@@ -49,15 +48,15 @@ export default async function LeaguePage(
 
   if (!league) return notFound()
 
-  // Only include published, non-draft, past-dated articles for this league
   const articles = await sanity.fetch<Card[]>(
     `*[
       _type == "article" &&
       references(*[_type=="league" && slug.current==$slug][0]._id) &&
       !(_id in path('drafts.**')) &&
-      defined(publishedAt) && publishedAt <= now() &&
-      (status == "published" || status == "edited" || !defined(status))
-    ] | order(publishedAt desc){
+      !(
+        defined(status) && status in ["draft","ai_generated"]
+      )
+    ] | order(coalesce(publishedAt, _updatedAt, _createdAt) desc){
       title,
       "slug": slug.current,
       excerpt,
