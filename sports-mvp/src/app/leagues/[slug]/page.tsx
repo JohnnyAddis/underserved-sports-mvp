@@ -3,19 +3,33 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
-import type { LeagueArticle, LeagueData } from '@/types/content'
+import type { PortableTextBlock } from '@portabletext/types'
 
-type LeagueDataPick = Pick<LeagueData, 'name' | 'about' | 'logoUrl'>
+// Re-generate this page at most every 30s so deletes/unpublishes drop off soon
+export const revalidate = 30
+
+type LeagueData = {
+  name: string
+  logoUrl?: string
+  about?: PortableTextBlock[]
+}
+
+type Card = {
+  title: string
+  slug: string
+  excerpt?: string
+  imgUrl?: string
+  imgAlt?: string | null
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
-  const league = await sanity.fetch<Pick<LeagueDataPick, 'name'>>(
+  const league = await sanity.fetch<{ name?: string }>(
     `*[_type=="league" && slug.current==$slug][0]{ name }`,
     { slug }
   )
-
   return { title: league?.name ?? 'League' }
 }
 
@@ -24,20 +38,26 @@ export default async function LeaguePage(
 ) {
   const { slug } = await params
 
-  const league = await sanity.fetch<LeagueDataPick | null>(
+  const league = await sanity.fetch<LeagueData | null>(
     `*[_type=="league" && slug.current==$slug][0]{
       name,
-      about,
-      "logoUrl": logo.asset->url
+      "logoUrl": logo.asset->url,
+      about
     }`,
     { slug }
   )
 
   if (!league) return notFound()
 
-  const articles = await sanity.fetch<LeagueArticle[]>(
-    `*[_type=="article" && references(*[_type=="league" && slug.current==$slug][0]._id)]
-     | order(publishedAt desc){
+  // Only include published, non-draft, past-dated articles for this league
+  const articles = await sanity.fetch<Card[]>(
+    `*[
+      _type == "article" &&
+      references(*[_type=="league" && slug.current==$slug][0]._id) &&
+      !(_id in path('drafts.**')) &&
+      defined(publishedAt) && publishedAt <= now() &&
+      (status == "published" || status == "edited" || !defined(status))
+    ] | order(publishedAt desc){
       title,
       "slug": slug.current,
       excerpt,
@@ -71,7 +91,7 @@ export default async function LeaguePage(
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Articles</h2>
         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {articles.map((a: LeagueArticle) => (
+          {articles.map((a) => (
             <li key={a.slug} className="border rounded-xl p-4 hover:shadow">
               <Link href={`/news/${a.slug}`} className="block" prefetch={false}>
                 {a.imgUrl && (

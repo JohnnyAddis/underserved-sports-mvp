@@ -1,13 +1,35 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
-import type { ArticleCard } from '@/types/content'
+
+// Re-generate this page at most every 30s so deletes/unpublishes drop off soon
+export const revalidate = 30
+
+type Card = {
+  title: string
+  slug: string
+  excerpt?: string
+  imgUrl?: string
+  imgAlt?: string | null
+  league?: { name: string; slug: string } | null
+}
 
 export const metadata = { title: 'Home' }
 
 export default async function Home() {
-  const articles = await sanity.fetch<ArticleCard[]>(`
-    *[_type=="article"] | order(publishedAt desc)[0...6]{
+  // Only include published, non-draft, past-dated articles
+  const articles = await sanity.fetch<Card[]>(`
+    *[
+      _type == "article" &&
+      !(_id in path('drafts.**')) &&
+      defined(publishedAt) && publishedAt <= now() &&
+      (
+        // treat explicit status field when present
+        status == "published" || status == "edited" ||
+        // OR if status not set, still allow publishedAt docs
+        !defined(status)
+      )
+    ] | order(publishedAt desc)[0...6]{
       title,
       "slug": slug.current,
       excerpt,
@@ -22,11 +44,11 @@ export default async function Home() {
       <h1 className="text-3xl font-bold tracking-tight">Trending</h1>
 
       {articles.length === 0 ? (
-        <p className="text-slate-600">No articles yet. Create one in Studio and publish.</p>
+        <p className="text-slate-600">No articles yet.</p>
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {articles.map((a: ArticleCard) => (
-            <li key={a.slug} className="card overflow-hidden hover:shadow-md transition-shadow">
+          {articles.map((a) => (
+            <li key={a.slug} className="border rounded-xl overflow-hidden hover:shadow-sm transition-shadow">
               <Link href={`/news/${a.slug}`} className="block" prefetch={false}>
                 {a.imgUrl && (
                   <div className="relative aspect-[16/9]">
@@ -40,7 +62,6 @@ export default async function Home() {
                     />
                   </div>
                 )}
-
                 <div className="p-4 space-y-2">
                   {a.league && (
                     <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
