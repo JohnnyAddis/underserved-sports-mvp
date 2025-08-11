@@ -1,36 +1,31 @@
 import type { PortableTextBlock } from '@portabletext/types'
 
+export type ArticleCard = {
+  title: string
+  slug: string
+  excerpt?: string
+  league?: { name: string; slug: string }
+  imgUrl?: string
+  imgAlt?: string | null
+}
+
 export type LeagueListItem = {
   name: string
   slug: string
   logoUrl?: string
+  count: number
 }
 
-export type ArticleListItem = {
+export type LeagueData = {
+  name: string
+  about?: PortableTextBlock[]
+  logoUrl?: string
+}
+
+export type LeagueArticle = {
   title: string
   slug: string
   excerpt?: string
-  league?: { name: string; slug: string }
   imgUrl?: string
-  imgAlt?: string
-}
-
-export type ArticleDetail = {
-  title: string
-  slug: string
-  excerpt?: string
-  body?: PortableTextBlock[]
-  imgUrl?: string
-  imgAlt?: string
-  publishedAt?: string
-  updatedAt?: string
-  tags?: string[]
-  sources?: string[]
-  league?: { name: string; slug: string }
-  author?: { name?: string }
-}
-
-export type RelatedArticle = {
-  title: string
-  slug: string
+  imgAlt?: string | null
 }

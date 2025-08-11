@@ -2,40 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
-html, body {
-  @apply bg-gray-900 text-gray-100 antialiased;
+/* Base light theme */
+:root {
+  color-scheme: light;
 }
 
-/* Screen-reader only (paired with focus to reveal) */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+html,
+body {
+  @apply bg-white text-slate-900 antialiased;
 }
 
-/* Global focus visibility */
+/* Focus visible */
 :where(a, button, [role="button"], input, select, textarea) {
-  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900;
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
 }
 
-/* Prefer reduced motion */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   * {
-    animation-duration: 0.01ms !important;
+    animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
 }
 
-/* Links */
+/* Link defaults */
 a {
-  @apply text-indigo-400 hover:text-indigo-300 hover:underline transition-colors duration-200;
+  @apply underline-offset-2;
+}
+a:hover {
+  @apply underline;
+}
+
+/* Card helper */
+.card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
 }

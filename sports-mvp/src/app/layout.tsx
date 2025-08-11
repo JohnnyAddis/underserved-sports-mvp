@@ -1,69 +1,36 @@
 import './globals.css'
-import Link from 'next/link'
 import type { Metadata } from 'next'
-import JsonLd from '@/components/JsonLd'
-import { siteUrl } from '@/lib/seo'
+import Link from 'next/link'
+import NavLink from '@/components/NavLink'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: 'Underserved Sports',
-    template: '%s • Underserved Sports',
-  },
-  description: 'News and insights on underserved leagues.',
-  openGraph: {
-    type: 'website',
-    url: siteUrl,
-    siteName: 'Underserved Sports',
-  },
-  twitter: { card: 'summary_large_image' },
+  title: { default: 'Underserved Sports', template: '%s | Underserved Sports' },
+  description: 'Coverage of underserved sports and leagues.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const org = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'Underserved Sports',
-    url: siteUrl,
-    logo: `${siteUrl}/favicon.ico`,
-  }
-  const webSite = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    url: siteUrl,
-    name: 'Underserved Sports',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${siteUrl}/search?q={query}`,
-      'query-input': 'required name=query',
-    },
-  }
-
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen flex flex-col">
-        <nav className="bg-gray-900 text-white">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="font-semibold tracking-wide">
-              Underserved Sports
+    <html lang="en">
+      <body className="min-h-screen flex flex-col bg-white text-slate-900">
+        <header className="border-b border-slate-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 sticky top-0 z-50">
+          <nav className="container mx-auto flex items-center justify-between gap-4 px-6 py-3">
+            <Link href="/" className="text-lg font-semibold tracking-tight text-slate-900">
+              <span className="text-indigo-700">Underserved</span> Sports
             </Link>
-            <div className="flex gap-6 text-sm">
-              <Link href="/">Home</Link>
-              <Link href="/leagues">Leagues</Link>
+            <div className="flex items-center gap-1">
+              <NavLink href="/">Home</NavLink>
+              <NavLink href="/leagues">Leagues</NavLink>
             </div>
-          </div>
-        </nav>
+          </nav>
+        </header>
 
-        <main className="flex-1 max-w-6xl mx-auto w-full">{children}</main>
+        <main className="flex-1 container mx-auto px-6 py-8">{children}</main>
 
-        <footer className="border-t mt-10">
-          <div className="max-w-6xl mx-auto px-4 py-8 text-sm text-gray-500">
+        <footer className="border-t border-slate-200 bg-white">
+          <div className="container mx-auto px-6 py-6 text-sm text-slate-600">
             © {new Date().getFullYear()} Underserved Sports
           </div>
         </footer>
-
-        <JsonLd data={org} />
-        <JsonLd data={webSite} />
       </body>
     </html>
   )
