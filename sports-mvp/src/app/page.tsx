@@ -15,13 +15,12 @@ type Card = {
 }
 
 export default async function Home() {
+  // Show any published (non-draft) article; no status/publishedAt gating
   const articles = await sanity.fetch<Card[]>(`
     *[
       _type == "article" &&
-      !(_id in path('drafts.**')) &&            // published (not a draft)
-      !(
-        defined(status) && status in ["draft","ai_generated"]
-      )
+      !(_id in path('drafts.**')) &&
+      defined(slug.current)
     ] | order(coalesce(publishedAt, _updatedAt, _createdAt) desc)[0...6]{
       title,
       "slug": slug.current,
