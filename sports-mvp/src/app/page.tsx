@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import type { ArticleListItem } from '@/types/content'
+import { imgAlt } from '@/lib/imgAlt'
 
 export const revalidate = 60
 
@@ -31,7 +32,7 @@ export default async function Home() {
                 <div className="relative w-full h-40 mb-3">
                   <Image
                     src={a.imgUrl}
-                    alt={a.imgAlt ?? ''}
+                    alt={imgAlt(a.imgAlt, a.title)}
                     fill
                     sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
                     className="object-cover rounded-md"

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
 import type { LeagueListItem } from '@/types/content'
+import { imgAlt } from '@/lib/imgAlt'
 
 export const metadata = { title: 'Leagues' }
 export const revalidate = 300
@@ -35,7 +36,7 @@ export default async function LeaguesPage() {
               {l.logoUrl && (
                 <Image
                   src={l.logoUrl}
-                  alt={`${l.name} logo`}
+                  alt={imgAlt(undefined, `${l.name} logo`)}
                   width={40}
                   height={40}
                   className="rounded"

@@ -1,16 +1,16 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
+import { sanity } from '@/lib/sanity'
 import JsonLd from '@/components/JsonLd'
 import { canonical, ogImage } from '@/lib/seo'
+import { imgAlt } from '@/lib/imgAlt'
 import type { ArticleDetail, RelatedArticle } from '@/types/content'
 
-export const revalidate = 60 // Rebuild at most once per minute
+export const revalidate = 60 // rebuild at most once per minute
 
 type ArticleData = {
   article: (ArticleDetail & {
-    slug: string
     author?: { name?: string }
   }) | null
   manualRelated: RelatedArticle[]
@@ -108,9 +108,9 @@ export default async function ArticlePage({
   const related: RelatedArticle[] =
     (data.manualRelated?.length ? data.manualRelated : data.fallbackRelated || []).slice(0, 5)
 
-  // Build JSON‑LD objects
   const url = canonical(`/news/${a.slug}`)
   const image = ogImage(a.imgUrl || undefined)
+
   const articleLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -126,6 +126,7 @@ export default async function ArticlePage({
       logo: { '@type': 'ImageObject', url: '/favicon.ico' },
     },
   }
+
   const breadcrumbLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -141,7 +142,6 @@ export default async function ArticlePage({
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-6 py-10">
-      {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
         <ol className="flex flex-wrap items-center gap-2">
           <li><Link href="/">Home</Link></li>
@@ -167,14 +167,18 @@ export default async function ArticlePage({
           <div className="relative w-full h-[315px] sm:h-[420px]">
             <Image
               src={a.imgUrl}
-              alt={a.imgAlt ?? ''}
+              alt={imgAlt(a.imgAlt, a.title)}
               fill
               sizes="(min-width:1024px) 960px, 100vw"
               className="object-cover rounded-lg"
               priority
             />
           </div>
-          {a.imgAlt && <figcaption className="text-sm text-gray-500 mt-1">{a.imgAlt}</figcaption>}
+          {(a.imgAlt || a.title) && (
+            <figcaption className="text-sm text-gray-500 mt-1">
+              {imgAlt(a.imgAlt, a.title)}
+            </figcaption>
+          )}
         </figure>
       )}
 
@@ -208,7 +212,6 @@ export default async function ArticlePage({
         </aside>
       )}
 
-      {/* Page-level JSON-LD */}
       <JsonLd data={articleLd} />
       <JsonLd data={breadcrumbLd} />
     </main>

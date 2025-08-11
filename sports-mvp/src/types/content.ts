@@ -15,19 +15,22 @@ export type ArticleListItem = {
   imgAlt?: string
 }
 
-export type LeagueRef = { name: string; slug: string }
-
 export type ArticleDetail = {
   title: string
+  slug: string
   excerpt?: string
+  body?: PortableTextBlock[]
   imgUrl?: string
   imgAlt?: string
-  body?: PortableTextBlock[]
   publishedAt?: string
   updatedAt?: string
-  league?: LeagueRef
   tags?: string[]
   sources?: string[]
+  league?: { name: string; slug: string }
+  author?: { name?: string }
 }
 
-export type RelatedArticle = { title: string; slug: string }
+export type RelatedArticle = {
+  title: string
+  slug: string
+}

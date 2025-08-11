@@ -5,6 +5,7 @@ import type { PortableTextBlock } from '@portabletext/types'
 import { sanity } from '@/lib/sanity'
 import JsonLd from '@/components/JsonLd'
 import { canonical, ogImage } from '@/lib/seo'
+import { imgAlt } from '@/lib/imgAlt'
 
 export const revalidate = 120 // Rebuild at most once every 2 minutes
 
@@ -62,12 +63,6 @@ export async function generateMetadata({
       description,
       images: image ? [{ url: image }] : undefined,
     },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
-      images: image ? [image] : undefined,
-    },
   }
 }
 
@@ -104,7 +99,6 @@ export default async function LeaguePage({
   const league = data.league
   if (!league) return <div className="px-6 py-10">League not found.</div>
 
-  // JSON-LD
   const leagueUrl = canonical(`/leagues/${league.slug}`)
   const leagueImage = ogImage(league.logoUrl)
   const leagueLd = {
@@ -126,7 +120,6 @@ export default async function LeaguePage({
 
   return (
     <div className="px-6 py-10 space-y-8">
-      {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="text-sm text-gray-600">
         <ol className="flex flex-wrap items-center gap-2">
           <li><Link href="/">Home</Link></li>
@@ -137,12 +130,11 @@ export default async function LeaguePage({
         </ol>
       </nav>
 
-      {/* Header */}
       <header className="flex items-center gap-4">
         {league.logoUrl && (
           <Image
             src={league.logoUrl}
-            alt={`${league.name} logo`}
+            alt={imgAlt(undefined, `${league.name} logo`)}
             width={64}
             height={64}
             className="rounded"
@@ -152,7 +144,6 @@ export default async function LeaguePage({
         <h1 className="text-3xl font-semibold">{league.name}</h1>
       </header>
 
-      {/* About */}
       <section className="prose">
         {league.about?.length ? (
           <PortableText value={league.about} />
@@ -161,7 +152,6 @@ export default async function LeaguePage({
         )}
       </section>
 
-      {/* Articles */}
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Latest articles</h2>
         {!data.articles.length ? (
@@ -180,7 +170,6 @@ export default async function LeaguePage({
         )}
       </section>
 
-      {/* JSON-LD */}
       <JsonLd data={leagueLd} />
       <JsonLd data={breadcrumbLd} />
     </div>
