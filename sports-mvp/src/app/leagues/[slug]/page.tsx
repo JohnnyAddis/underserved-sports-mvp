@@ -37,8 +37,10 @@ export default async function LeaguePage(
 ) {
   const { slug } = await params
 
-  const league = await sanity.fetch<LeagueData | null>(
+  // 1) Load league and its id
+  const league = await sanity.fetch<(LeagueData & { _id: string }) | null>(
     `*[_type=="league" && slug.current==$slug][0]{
+      _id,
       name,
       "logoUrl": logo.asset->url,
       about
@@ -48,22 +50,26 @@ export default async function LeaguePage(
 
   if (!league) return notFound()
 
+  // 2) Fetch articles by reference to this league id
+  //    Also include a fallback where league->slug.current matches (in case ref got set oddly)
   const articles = await sanity.fetch<Card[]>(
     `*[
       _type == "article" &&
-      references(*[_type=="league" && slug.current==$slug][0]._id) &&
       !(_id in path('drafts.**')) &&
-      !(
-        defined(status) && status in ["draft","ai_generated"]
+      defined(slug.current) &&
+      (
+        references($leagueId) ||
+        (defined(league) && league->slug.current == $slug)
       )
-    ] | order(coalesce(publishedAt, _updatedAt, _createdAt) desc){
+    ]
+    | order(coalesce(publishedAt, _updatedAt, _createdAt) desc){
       title,
       "slug": slug.current,
       excerpt,
       "imgUrl": heroImage.asset->url,
       "imgAlt": heroImage.alt
     }`,
-    { slug }
+    { leagueId: league._id, slug }
   )
 
   return (
@@ -89,6 +95,7 @@ export default async function LeaguePage(
 
       <section className="space-y-3">
         <h2 className="text-xl font-semibold">Articles</h2>
+
         <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles.map((a) => (
             <li key={a.slug} className="border rounded-xl p-4 hover:shadow">
