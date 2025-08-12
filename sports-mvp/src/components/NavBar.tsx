@@ -1,30 +1,82 @@
-// src/components/NavBar.tsx
 import Link from 'next/link'
 import { sanity } from '@/lib/sanity'
 
-type LeagueNavItem = { name: string; slug: string }
+type LeagueRow = {
+  name: string
+  slug: string
+  featuredRank?: number | null
+  count: number
+}
+
+type LeagueLink = { name: string; slug: string }
 
 const NAV_ITEM =
-  'rounded px-2 py-1 text-sm font-medium text-slate-800 hover:text-indigo-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500';
+  'rounded px-2 py-1 text-sm font-medium text-slate-800 hover:text-indigo-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500'
+
+async function fetchLeagues(): Promise<LeagueRow[]> {
+  return sanity.fetch<LeagueRow[]>(`
+    *[_type=="league"]{
+      name,
+      "slug": slug.current,
+      featuredRank,
+      "count": count(*[_type=="article" && references(^._id)])
+    }
+  `)
+}
+
+function pickTopByFeaturedOrCount(rows: LeagueRow[], n: number): LeagueLink[] {
+  const ranked = rows
+    .filter(r => typeof r.featuredRank === 'number')
+    .sort((a, b) => (a.featuredRank! - b.featuredRank!))
+  if (ranked.length > 0) {
+    // use featured first
+    const take = ranked.slice(0, n).map(r => ({ name: r.name, slug: r.slug }))
+    if (take.length < n) {
+      const chosen = new Set(take.map(t => t.slug))
+      const byCount = rows
+        .filter(r => !chosen.has(r.slug))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        .slice(0, n - take.length)
+        .map(r => ({ name: r.name, slug: r.slug }))
+      return [...take, ...byCount]
+    }
+    return take
+  }
+  // no featured → by count
+  return rows
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, n)
+    .map(r => ({ name: r.name, slug: r.slug }))
+}
 
 export default async function NavBar() {
-  // Fetch leagues (alphabetical for now; we can switch to popularity/featured later)
-  const leagues = await sanity.fetch<LeagueNavItem[]>(
-    `*[_type=="league"]|order(name asc){
-      "name": name,
-      "slug": slug.current
-    }`
-  );
+  const rows = await fetchLeagues()
 
-  const top3 = leagues.slice(0, 3);
-  const others = leagues.slice(3); // <-- only leagues NOT in the navbar
+  // Desktop: top 3
+  const top3Desktop = pickTopByFeaturedOrCount(rows, 3)
+
+  // Mobile: top 5
+  const top5Mobile = pickTopByFeaturedOrCount(rows, 5)
+
+  const top3Slugs = new Set(top3Desktop.map(l => l.slug))
+  const top5Slugs = new Set(top5Mobile.map(l => l.slug))
+
+  const othersDesktop: LeagueLink[] = rows
+    .filter(r => !top3Slugs.has(r.slug))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(r => ({ name: r.name, slug: r.slug }))
+
+  const othersMobile: LeagueLink[] = rows
+    .filter(r => !top5Slugs.has(r.slug))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(r => ({ name: r.name, slug: r.slug }))
 
   return (
-    <nav className="border-b bg-white">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        {/* Left: Brand + Desktop primary links */}
+    <header className="border-b bg-white">
+      {/* Top bar */}
+      <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+        {/* Left: Brand + desktop links */}
         <div className="flex items-center gap-6">
-          {/* Brand */}
           <Link
             href="/"
             aria-label="Underserved Sports home"
@@ -33,19 +85,19 @@ export default async function NavBar() {
             Underserved Sports
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop primary nav */}
           <div className="hidden md:flex items-center gap-4">
             <Link href="/" className={NAV_ITEM}>
               Home
             </Link>
 
-            {top3.map((l) => (
+            {top3Desktop.map((l) => (
               <Link key={l.slug} href={`/leagues/${l.slug}`} className={NAV_ITEM}>
                 {l.name}
               </Link>
             ))}
 
-            {/* More Leagues (only leagues NOT in top3) */}
+            {/* More Leagues (desktop): only leagues NOT in top3 */}
             <details className="relative">
               <summary
                 className={`${NAV_ITEM} list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden`}
@@ -57,8 +109,8 @@ export default async function NavBar() {
                 role="menu"
                 aria-label="More leagues"
               >
-                {others.length ? (
-                  others.map((l) => (
+                {othersDesktop.length ? (
+                  othersDesktop.map((l) => (
                     <li key={l.slug} role="none">
                       <Link
                         role="menuitem"
@@ -97,33 +149,21 @@ export default async function NavBar() {
             </svg>
           </summary>
 
-          {/* Mobile panel */}
+          {/* Mobile panel: only leagues NOT in top5 to avoid duplicates */}
           <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <div className="p-2">
               <Link href="/" className="block rounded px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
                 Home
               </Link>
 
-              {/* Top 3 (shown in navbar on desktop) */}
-              {top3.map((l) => (
-                <Link
-                  key={l.slug}
-                  href={`/leagues/${l.slug}`}
-                  className="block rounded px-3 py-2 text-sm text-slate-800 hover:bg-slate-50"
-                >
-                  {l.name}
-                </Link>
-              ))}
-
               <div className="my-2 border-t" />
 
-              {/* More Leagues (mobile: only 'others' to avoid duplicates) */}
               <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 More Leagues
               </div>
-              {others.length ? (
+              {othersMobile.length ? (
                 <ul className="max-h-64 overflow-auto">
-                  {others.map((l) => (
+                  {othersMobile.map((l) => (
                     <li key={l.slug}>
                       <Link
                         href={`/leagues/${l.slug}`}
@@ -149,7 +189,26 @@ export default async function NavBar() {
             </div>
           </div>
         </details>
-      </div>
-    </nav>
-  );
+      </nav>
+
+      {/* Mobile-only horizontal league rail (top 5) */}
+      {top5Mobile.length > 0 && (
+        <div className="md:hidden border-b bg-white">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="flex gap-2 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {top5Mobile.map((l) => (
+                <Link
+                  key={l.slug}
+                  href={`/leagues/${l.slug}`}
+                  className="whitespace-nowrap rounded-full border border-slate-200 px-3 py-1 text-sm font-medium text-slate-800 hover:border-indigo-300 hover:bg-slate-50"
+                >
+                  {l.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  )
 }
