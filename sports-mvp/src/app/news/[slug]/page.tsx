@@ -1,17 +1,20 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { sanity } from '@/lib/sanity'
 import { PortableText } from '@portabletext/react'
 import type { PortableTextBlock } from '@portabletext/types'
+import Breadcrumbs, { type BreadcrumbItem } from '@/components/Breadcrumbs'
 
-type ArticleDetail = {
+export const revalidate = 30
+
+type ArticleData = {
   title: string
-  excerpt?: string
   slug: string
+  excerpt?: string
   body?: PortableTextBlock[]
   imgUrl?: string
   imgAlt?: string | null
-  publishedAt?: string
   league?: { name: string; slug: string } | null
 }
 
@@ -19,27 +22,11 @@ export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
-  const meta = await sanity.fetch<
-    { title?: string; metaTitle?: string; metaDescription?: string; imgUrl?: string } | null
-  >(
-    `*[_type=="article" && slug.current==$slug][0]{
-      title, metaTitle, metaDescription,
-      "imgUrl": heroImage.asset->url
-    }`,
+  const meta = await sanity.fetch<{ title?: string } | null>(
+    `*[_type=="article" && slug.current==$slug][0]{ title }`,
     { slug }
   )
-
-  if (!meta) return {}
-
-  return {
-    title: meta.metaTitle || meta.title || 'Article',
-    description: meta.metaDescription || undefined,
-    openGraph: {
-      title: meta.metaTitle || meta.title || 'Article',
-      description: meta.metaDescription || undefined,
-      images: meta.imgUrl ? [{ url: meta.imgUrl }] : undefined,
-    },
-  }
+  return { title: meta?.title ?? 'Article' }
 }
 
 export default async function ArticlePage(
@@ -47,7 +34,7 @@ export default async function ArticlePage(
 ) {
   const { slug } = await params
 
-  const article = await sanity.fetch<ArticleDetail | null>(
+  const article = await sanity.fetch<ArticleData | null>(
     `*[_type=="article" && slug.current==$slug][0]{
       title,
       "slug": slug.current,
@@ -55,7 +42,6 @@ export default async function ArticlePage(
       body,
       "imgUrl": heroImage.asset->url,
       "imgAlt": heroImage.alt,
-      publishedAt,
       league->{ name, "slug": slug.current }
     }`,
     { slug }
@@ -63,29 +49,48 @@ export default async function ArticlePage(
 
   if (!article) return notFound()
 
+  const crumbs: BreadcrumbItem[] = [{ label: 'Home', href: '/' }]
+  if (article.league?.slug) {
+    crumbs.push({ label: 'Leagues', href: '/leagues' })
+    crumbs.push({ label: article.league.name, href: `/leagues/${article.league.slug}` })
+  }
+  crumbs.push({ label: article.title })
+
   return (
     <main className="space-y-6">
-      <article className="prose lg:prose-lg max-w-none">
-        {article.imgUrl && (
-          <div className="relative aspect-[16/9] w-full">
-            <Image
-              src={article.imgUrl}
-              alt={article.imgAlt || article.title}
-              fill
-              sizes="100vw"
-              className="object-cover rounded-xl"
-              priority
-            />
-          </div>
+      <Breadcrumbs items={crumbs} className="mt-2" />
+
+      <header className="space-y-2">
+        {article.league && (
+          <Link
+            href={`/leagues/${article.league.slug}`}
+            className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10"
+          >
+            {article.league.name}
+          </Link>
         )}
+        <h1 className="text-3xl font-bold tracking-tight">{article.title}</h1>
+        {article.excerpt && <p className="text-slate-600">{article.excerpt}</p>}
+      </header>
 
-        <h1 className="!mb-2">{article.title}</h1>
-        {article.excerpt && <p className="lead">{article.excerpt}</p>}
+      {article.imgUrl && (
+        <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl ring-1 ring-slate-200">
+          <Image
+            src={article.imgUrl}
+            alt={article.imgAlt || article.title}
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+        </div>
+      )}
 
+      <article className="prose prose-slate max-w-none">
         {Array.isArray(article.body) && article.body.length > 0 ? (
           <PortableText value={article.body} />
         ) : (
-          <p className="text-slate-600">No content yet.</p>
+          <p>No content yet.</p>
         )}
       </article>
     </main>
