@@ -1,36 +1,29 @@
+// src/components/Breadcrumbs.tsx
 import Link from 'next/link'
-import type { FC, ReactNode } from 'react'
 
-export type BreadcrumbItem = {
-  label: string
-  href?: string
-}
+export type Crumb = { name: string; href?: string }
 
-type Props = {
-  items: BreadcrumbItem[]
-  className?: string
-}
-
-const Breadcrumbs: FC<Props> = ({ items, className }) => {
-  if (!items?.length) return null
-
+export default function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label="Breadcrumb" className="mb-4">
       <ol className="flex flex-wrap items-center gap-1 text-sm text-slate-600">
-        {items.map((item, idx) => {
-          const isLast = idx === items.length - 1
+        {items.map((item, i) => {
+          const isLast = i === items.length - 1
           return (
-            <li key={`${item.label}-${idx}`} className="flex items-center">
-              {isLast || !item.href ? (
-                <span aria-current="page" className="font-medium text-slate-900">
-                  {item.label}
-                </span>
-              ) : (
-                <Link href={item.href} className="hover:text-indigo-700">
-                  {item.label}
+            <li key={`${item.name}-${i}`} className="flex items-center gap-1">
+              {item.href && !isLast ? (
+                <Link
+                  href={item.href}
+                  className="rounded px-1 py-0.5 text-slate-700 hover:text-indigo-700 hover:bg-slate-50"
+                >
+                  {item.name}
                 </Link>
+              ) : (
+                <span className="px-1 py-0.5 text-slate-500" aria-current="page">
+                  {item.name}
+                </span>
               )}
-              {!isLast && <span className="mx-2 select-none text-slate-400">/</span>}
+              {!isLast && <span aria-hidden="true" className="text-slate-400">/</span>}
             </li>
           )
         })}
@@ -38,5 +31,3 @@ const Breadcrumbs: FC<Props> = ({ items, className }) => {
     </nav>
   )
 }
-
-export default Breadcrumbs
