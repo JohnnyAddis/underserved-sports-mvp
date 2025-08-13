@@ -1,9 +1,25 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { sanity } from '@/lib/sanity'
+import type { Metadata } from 'next'
 
 export const revalidate = 30
-export const metadata = { title: 'Home' }
+
+export const metadata: Metadata = {
+  title: 'Home',
+  description: 'Discover comprehensive coverage of underserved sports leagues worldwide. Get the latest news, scores, and insights for international sports that deserve more attention.',
+  openGraph: {
+    title: 'Underserved Sports - Global Sports Coverage',
+    description: 'Discover comprehensive coverage of underserved sports leagues worldwide. Get the latest news, scores, and insights for international sports that deserve more attention.',
+    type: 'website',
+    url: 'https://underservedsports.com',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Underserved Sports - Global Sports Coverage',
+    description: 'Discover comprehensive coverage of underserved sports leagues worldwide.',
+  },
+}
 
 type Card = {
   title: string

@@ -1,5 +1,6 @@
 // src/app/leagues/[slug]/page.tsx
 import { sanity } from '@/lib/sanity'
+import { generateSEOMetadata } from '@/lib/seo-utils'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PortableText, type PortableTextComponents } from '@portabletext/react'
@@ -25,14 +26,40 @@ type PageParams = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { slug } = await params
-  const data = await sanity.fetch<Pick<LeagueData, 'name'>>(
-    `*[_type=="league" && slug.current==$slug][0]{ name }`,
+  const data = await sanity.fetch<{
+    name?: string
+    metaTitle?: string
+    metaDescription?: string
+    aboutSummary?: string
+    logoUrl?: string | null
+    noindex?: boolean
+  } | null>(
+    `*[_type=="league" && slug.current==$slug][0]{
+      name,
+      metaTitle,
+      metaDescription,
+      aboutSummary,
+      "logoUrl": logo.asset->url,
+      noindex
+    }`,
     { slug }
   )
-  return {
-    title: data?.name ? `${data.name} | League` : 'League',
-    description: data?.name ? `Latest news for ${data.name}.` : 'League news and info.',
-  }
+  
+  if (!data) return {}
+  
+  return generateSEOMetadata(
+    {
+      title: data.name,
+      metaTitle: data.metaTitle,
+      metaDescription: data.metaDescription,
+      excerpt: data.aboutSummary,
+      imgUrl: data.logoUrl,
+      noindex: data.noindex,
+      url: `https://underservedsports.com/leagues/${slug}`,
+    },
+    'League',
+    `Latest news and information about ${data.name || 'this league'}.`
+  )
 }
 
 export default async function LeaguePage({ params }: PageParams) {

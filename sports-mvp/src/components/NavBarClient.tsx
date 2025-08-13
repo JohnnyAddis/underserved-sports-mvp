@@ -27,6 +27,26 @@ export default function NavBarClient({
 
   const isHome = pathname === '/'
   const isLeague = (slug: string) => pathname.startsWith(`/leagues/${slug}`)
+  
+  // Extract current league slug from pathname
+  const currentLeagueSlug = pathname.match(/^\/leagues\/([^\/]+)/)?.[1]
+  const isLeaguePage = !!currentLeagueSlug
+  const isLeagueAboutPage = pathname === `/leagues/${currentLeagueSlug}/about`
+  
+  // Find current league details
+  const allLeagues = [...(top3Desktop || []), ...(othersDesktop || [])]
+  const currentLeague = currentLeagueSlug ? allLeagues.find(l => l.slug === currentLeagueSlug) : null
+  
+  // Get other leagues (excluding current)
+  const otherLeaguesForDropdown = currentLeagueSlug 
+    ? allLeagues.filter(l => l.slug !== currentLeagueSlug)
+    : (othersDesktop || [])
+  
+  // For mobile menu
+  const allLeaguesMobile = [...(top5Mobile || []), ...(othersMobile || [])]
+  const otherLeaguesForDropdownMobile = currentLeagueSlug
+    ? allLeaguesMobile.filter(l => l.slug !== currentLeagueSlug)
+    : allLeaguesMobile
 
   // Refs to <details> so we can close them
   const desktopDetailsRef = useRef<HTMLDetailsElement>(null)
@@ -69,20 +89,43 @@ export default function NavBarClient({
               Home
             </Link>
 
-            {top3Desktop.map((l) => {
-              const active = isLeague(l.slug)
-              return (
+            {/* If on a league page, show current league + About + More Leagues */}
+            {isLeaguePage && currentLeague ? (
+              <>
                 <Link
-                  key={l.slug}
-                  href={`/leagues/${l.slug}`}
-                  className={`${NAV_ITEM} ${active ? 'text-indigo-700 bg-slate-50 ring-2 ring-indigo-500 ring-offset-0' : ''}`}
-                  aria-current={active ? 'page' : undefined}
-                  onClick={closeAllMenus} // close on click
+                  href={`/leagues/${currentLeague.slug}`}
+                  className={`${NAV_ITEM} ${!isLeagueAboutPage ? 'text-indigo-700 bg-slate-50 ring-2 ring-indigo-500 ring-offset-0' : ''}`}
+                  aria-current={!isLeagueAboutPage ? 'page' : undefined}
+                  onClick={closeAllMenus}
                 >
-                  {l.name}
+                  {currentLeague.name}
                 </Link>
-              )
-            })}
+                <Link
+                  href={`/leagues/${currentLeagueSlug}/about`}
+                  className={`${NAV_ITEM} ${isLeagueAboutPage ? 'text-indigo-700 bg-slate-50 ring-2 ring-indigo-500 ring-offset-0' : ''}`}
+                  aria-current={isLeagueAboutPage ? 'page' : undefined}
+                  onClick={closeAllMenus}
+                >
+                  About
+                </Link>
+              </>
+            ) : (
+              /* Otherwise show top 3 leagues as before */
+              top3Desktop.map((l) => {
+                const active = isLeague(l.slug)
+                return (
+                  <Link
+                    key={l.slug}
+                    href={`/leagues/${l.slug}`}
+                    className={`${NAV_ITEM} ${active ? 'text-indigo-700 bg-slate-50 ring-2 ring-indigo-500 ring-offset-0' : ''}`}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={closeAllMenus} // close on click
+                  >
+                    {l.name}
+                  </Link>
+                )
+              })
+            )}
 
             {/* More Leagues (desktop) */}
             <details className="relative" ref={desktopDetailsRef}>
@@ -96,8 +139,8 @@ export default function NavBarClient({
                 role="menu"
                 aria-label="More leagues"
               >
-                {othersDesktop.length ? (
-                  othersDesktop.map((l) => {
+                {otherLeaguesForDropdown.length ? (
+                  otherLeaguesForDropdown.map((l) => {
                     const active = isLeague(l.slug)
                     return (
                       <li key={l.slug} role="none">
@@ -158,14 +201,40 @@ export default function NavBarClient({
                 Home
               </Link>
 
+              {/* Show current league and About link when on a league page */}
+              {isLeaguePage && currentLeague && (
+                <>
+                  <Link
+                    href={`/leagues/${currentLeague.slug}`}
+                    className={`block rounded px-3 py-2 text-sm font-medium ${
+                      !isLeagueAboutPage ? 'bg-slate-50 text-indigo-700' : 'text-slate-800 hover:bg-slate-50'
+                    }`}
+                    aria-current={!isLeagueAboutPage ? 'page' : undefined}
+                    onClick={closeAllMenus}
+                  >
+                    {currentLeague.name}
+                  </Link>
+                  <Link
+                    href={`/leagues/${currentLeagueSlug}/about`}
+                    className={`block rounded px-3 py-2 text-sm font-medium ${
+                      isLeagueAboutPage ? 'bg-slate-50 text-indigo-700' : 'text-slate-800 hover:bg-slate-50'
+                    }`}
+                    aria-current={isLeagueAboutPage ? 'page' : undefined}
+                    onClick={closeAllMenus}
+                  >
+                    About
+                  </Link>
+                </>
+              )}
+
               <div className="my-2 border-t" />
 
               <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                More Leagues
+                {isLeaguePage ? 'Other Leagues' : 'More Leagues'}
               </div>
-              {othersMobile.length ? (
+              {otherLeaguesForDropdownMobile.length ? (
                 <ul className="max-h-64 overflow-auto">
-                  {othersMobile.map((l) => {
+                  {otherLeaguesForDropdownMobile.map((l) => {
                     const active = isLeague(l.slug)
                     return (
                       <li key={l.slug}>
@@ -201,8 +270,8 @@ export default function NavBarClient({
         </details>
       </nav>
 
-      {/* Mobile league rail (top 5) */}
-      {top5Mobile.length > 0 && (
+      {/* Mobile league rail (top 5) - only show when NOT on a league page */}
+      {top5Mobile.length > 0 && !isLeaguePage && (
         <div className="md:hidden border-b bg-white">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="flex gap-2 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

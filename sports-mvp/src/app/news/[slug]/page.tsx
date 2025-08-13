@@ -1,5 +1,6 @@
 // src/app/news/[slug]/page.tsx
 import { sanity } from '@/lib/sanity'
+import { generateSEOMetadata } from '@/lib/seo-utils'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PortableText, type PortableTextComponents } from '@portabletext/react'
@@ -15,6 +16,7 @@ type Article = {
   slug: string
   publishedAt?: string
   heroUrl?: string | null
+  heroAlt?: string | null
   body?: PortableTextBlock[]
   author?: Author | null
   league?: LeagueRef | null
@@ -24,29 +26,65 @@ type PageParams = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { slug } = await params
-  const meta = await sanity.fetch<
-    { title?: string; metaTitle?: string; metaDescription?: string; imgUrl?: string | null } | null
-  >(
-    `*[_type=="article" && slug.current==$slug][0]{
+  
+  try {
+    const meta = await sanity.fetch<{
+      title?: string
+      metaTitle?: string
+      metaDescription?: string
+      excerpt?: string
+      imgUrl?: string | null
+      imgAlt?: string | null
+      noindex?: boolean
+      publishedAt?: string
+      author?: { name?: string } | null
+    } | null>(
+      `*[_type=="article" && slug.current==$slug][0]{
+        title,
+        metaTitle,
+        metaDescription,
+        excerpt,
+        "imgUrl": heroImage.asset->url,
+        "imgAlt": heroImage.alt,
+        noindex,
+        publishedAt,
+        author->{ name }
+      }`,
+      { slug }
+    )
+
+    if (!meta) return { title: 'Article', description: 'Read the latest sports news and updates.' }
+
+    const title = meta.metaTitle || meta.title || 'Article'
+    const description = meta.metaDescription || meta.excerpt || 'Read the latest sports news and updates.'
+    
+    const metadata: Metadata = {
       title,
-      metaTitle,
-      metaDescription,
-      "imgUrl": heroImage.asset->url
-    }`,
-    { slug }
-  )
+      description,
+      openGraph: {
+        title,
+        description,
+        type: 'article',
+        images: meta.imgUrl ? [{ url: meta.imgUrl, alt: meta.imgAlt || title }] : undefined,
+        publishedTime: meta.publishedAt,
+        authors: meta.author?.name ? [meta.author.name] : undefined,
+      },
+      twitter: {
+        card: meta.imgUrl ? 'summary_large_image' : 'summary',
+        title,
+        description,
+        images: meta.imgUrl ? [meta.imgUrl] : undefined,
+      },
+    }
 
-  if (!meta) return {}
+    if (meta.noindex) {
+      metadata.robots = { index: false, follow: true }
+    }
 
-  const title = meta.metaTitle || meta.title || 'Article'
-  const description = meta.metaDescription || ''
-  const openGraphImages = meta.imgUrl ? [{ url: meta.imgUrl }] : undefined
-
-  return {
-    title,
-    description,
-    openGraph: { title, description, images: openGraphImages },
-    twitter: { title, description, images: openGraphImages?.[0]?.url },
+    return metadata
+  } catch (error) {
+    console.error('Error generating article metadata:', error)
+    return { title: 'Article', description: 'Read the latest sports news and updates.' }
   }
 }
 
@@ -62,6 +100,7 @@ export default async function ArticlePage({ params }: PageParams) {
       "slug": slug.current,
       publishedAt,
       "heroUrl": heroImage.asset->url,
+      "heroAlt": heroImage.alt,
       body,
       author->{ name },
       league->{ name, "slug": slug.current }
@@ -96,8 +135,38 @@ export default async function ArticlePage({ params }: PageParams) {
     },
   }
 
+  // JSON-LD structured data for SEO
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: data.title,
+    description: data.excerpt,
+    image: data.heroUrl ? [data.heroUrl] : undefined,
+    datePublished: data.publishedAt,
+    author: data.author?.name ? {
+      '@type': 'Person',
+      name: data.author.name,
+    } : undefined,
+    publisher: {
+      '@type': 'Organization',
+      name: 'Underserved Sports',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://underservedsports.com/logo.png', // Add your logo URL
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://underservedsports.com/news/${data.slug}`,
+    },
+  }
+
   return (
     <article className="mx-auto max-w-3xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb" className="mb-4 text-sm text-slate-600">
         <ol className="flex flex-wrap items-center gap-1">
@@ -124,7 +193,7 @@ export default async function ArticlePage({ params }: PageParams) {
 
       {data.heroUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={data.heroUrl} alt={data.title} className="mb-4 w-full rounded" />
+        <img src={data.heroUrl} alt={data.heroAlt || data.title} className="mb-4 w-full rounded" />
       ) : null}
 
       {data.body && data.body.length > 0 ? (
